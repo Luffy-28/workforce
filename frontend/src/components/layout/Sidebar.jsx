@@ -18,12 +18,13 @@ const navConfig = [
       { path: '/inventory', label: 'Inventory', icon: 'bi-box-seam', roles: ['admin', 'manager'] },
       { path: '/requests', label: 'Requests', icon: 'bi-arrow-down-circle', badge: 'pendingRequests', roles: ['admin', 'manager'] },
       { path: '/shifts', label: 'Shifts', icon: 'bi-calendar3' },
+      { path: '/leaves', label: 'Leaves', icon: 'bi-calendar-range' },
       { path: '/tasks', label: 'Tasks', icon: 'bi-check2-square' },
     ]
   },
   {
     section: 'Management', items: [
-      { path: '/users', label: 'Users', icon: 'bi-people', roles: ['admin'] },
+      { path: '/users', label: 'Users', icon: 'bi-people', roles: ['admin', 'manager'] },
       { path: '/sites', label: 'Sites', icon: 'bi-geo-alt', roles: ['admin', 'manager'] },
       { path: '/reports', label: 'Reports', icon: 'bi-bar-chart', roles: ['admin', 'manager'] },
       { path: '/notifications', label: 'Notifications', icon: 'bi-bell', badge: 'unreadNotifs' },

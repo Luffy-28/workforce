@@ -7,6 +7,7 @@ import Alert from '../common/Alert';
 import { connectSocket, getSocket } from '../../utils/socket';
 import { fetchNotifications, addNotification } from '../../store/slices/notificationsSlice';
 import { updateItemRealtime } from '../../store/slices/inventorySlice';
+import { addAnnouncement } from '../../store/slices/announcementsSlice';
 
 const pageTitles = {
   '/dashboard': 'Dashboard',
@@ -15,6 +16,7 @@ const pageTitles = {
   '/requests': 'Stock Requests',
   '/shifts': 'Shift Schedule',
   '/tasks': 'Tasks',
+  '/leaves': 'Leave Management',
   '/users': 'User Management',
   '/reports': 'Reports',
   '/sites': 'Sites',
@@ -48,10 +50,28 @@ const AppLayout = () => {
         dispatch(addNotification({ _id: Date.now(), title: '⚠️ Low Stock Alert', message: `${item.itemName} is running low (${item.quantity} left)`, type: 'low-stock', isRead: false, createdAt: new Date() }));
       }
     });
+    socket.on('announcement:new', (announcement) => {
+      dispatch(addAnnouncement(announcement));
+      if (announcement.priority === 'high') {
+        dispatch(addNotification({ 
+          _id: Date.now(), 
+          title: `📢 ${announcement.title}`, 
+          message: 'New high-priority announcement posted', 
+          type: 'announcement', 
+          isRead: false, 
+          createdAt: new Date() 
+        }));
+      }
+    });
 
     return () => {
       const s = getSocket();
-      if (s) { s.off('notification:new'); s.off('inventory:update'); s.off('inventory:lowStock'); }
+      if (s) { 
+        s.off('notification:new'); 
+        s.off('inventory:update'); 
+        s.off('inventory:lowStock'); 
+        s.off('announcement:new');
+      }
     };
   }, [dispatch]);
 

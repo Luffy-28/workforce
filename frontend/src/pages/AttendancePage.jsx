@@ -176,6 +176,19 @@ const AttendancePage = () => {
     dispatch(fetchMyAttendance());
   };
 
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371e3;
+    const φ1 = lat1 * Math.PI/180;
+    const φ2 = lat2 * Math.PI/180;
+    const Δφ = (lat2-lat1) * Math.PI/180;
+    const Δλ = (lon2-lon1) * Math.PI/180;
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
+
   const handleAction = async (action) => {
     const labels = {
       in: 'Clock In',
@@ -184,9 +197,27 @@ const AttendancePage = () => {
       'break-end': 'End Break',
     };
 
+    let loc = await getGPS();
+    setCurrentGPS(loc);
+
+    let siteCoords = null;
+    const userSiteId = user.site?._id || user.site;
+    if (userSiteId) {
+      const site = sites.find(s => s._id === userSiteId);
+      if (site?.location) siteCoords = site.location;
+    }
+
+    let outOfRange = false;
+    if (siteCoords && loc.lat) {
+      const dist = calculateDistance(loc.lat, loc.lng, siteCoords.lat, siteCoords.lng);
+      if (dist > 200) outOfRange = true;
+    }
+
     Alert.alert(
       labels[action],
-      `Are you sure you want to ${labels[action]} at ${currentGPS.address}?`,
+      outOfRange && (action === 'in' || action === 'out')
+        ? `⚠️ WARNING: You appear to be outside the assigned site boundary. Clocking ${action} from here will require manager approval. Proceed?`
+        : `Are you sure you want to ${labels[action]} at ${loc.address}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -194,14 +225,6 @@ const AttendancePage = () => {
           onPress: async () => {
             try {
               setActionLoading(true);
-
-              let loc = currentGPS;
-              if (action === 'in' || action === 'out') {
-                // Refresh GPS to be sure
-                loc = await getGPS();
-                setCurrentGPS(loc);
-              }
-
               const actionMap = {
                 in: clockIn({ gpsLocation: loc }),
                 out: clockOut({ gpsLocation: loc }),
@@ -213,12 +236,14 @@ const AttendancePage = () => {
               if (result.error) {
                 Alert.error('Action Failed', result.payload || result.error.message || 'Action failed');
               } else {
-                Alert.success('Success', `Successfully ${labels[action].toLowerCase()}ed`);
+                Alert.success('Success', outOfRange && (action === 'in' || action === 'out')
+                  ? `Clocked ${action} pending approval (out of range).`
+                  : `Successfully ${labels[action].toLowerCase()}ed`);
               }
               loadData();
             } catch (err) {
               console.error(err);
-              Alert.error('Error', 'An unexpected error occurred. Please refresh and try again.');
+              Alert.error('Error', 'An unexpected error occurred.');
             } finally {
               setActionLoading(false);
             }

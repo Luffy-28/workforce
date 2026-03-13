@@ -39,7 +39,9 @@ app.use('/api/reports', require('./routes/reports'));
 app.use('/api/companies', require('./routes/companies'));
 app.use('/api/sites', require('./routes/sites'));
 app.use('/api/availability', require('./routes/availability'));
-
+app.use('/api/announcements', require('./routes/announcements'));
+app.use('/api/leaves', require('./routes/leaves'));
+app.use('/api/shifts/swap', require('./routes/swap'));
 
 app.get('/api/health', (req, res) => res.json({ status: 'OK', timestamp: new Date() }));
 

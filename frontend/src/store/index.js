@@ -8,6 +8,9 @@ import usersReducer from './slices/usersSlice';
 import notificationsReducer from './slices/notificationsSlice';
 import sitesReducer from './slices/sitesSlice';
 import alertReducer from './slices/alertSlice';
+import announcementsReducer from './slices/announcementsSlice';
+import leavesReducer from './slices/leavesSlice';
+import swapReducer from './slices/swapSlice';
 
 const store = configureStore({
   reducer: {
@@ -20,6 +23,9 @@ const store = configureStore({
     notifications: notificationsReducer,
     sites: sitesReducer,
     alert: alertReducer,
+    announcements: announcementsReducer,
+    leaves: leavesReducer,
+    swap: swapReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

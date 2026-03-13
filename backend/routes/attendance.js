@@ -1,7 +1,24 @@
 const express = require('express');
 const router = express.Router();
 const Attendance = require('../models/Attendance');
+const Site = require('../models/Site');
 const { protect, requireManager } = require('../middleware/auth');
+
+// Haversine formula to calculate distance between two points in meters
+function getDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371e3; // metres
+  const φ1 = lat1 * Math.PI/180;
+  const φ2 = lat2 * Math.PI/180;
+  const Δφ = (lat2-lat1) * Math.PI/180;
+  const Δλ = (lon2-lon1) * Math.PI/180;
+
+  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+          Math.cos(φ1) * Math.cos(φ2) *
+          Math.sin(Δλ/2) * Math.sin(Δλ/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+  return R * c; // in metres
+}
 
 router.post('/clock-in', protect, async (req, res) => {
   try {
@@ -19,14 +36,34 @@ router.post('/clock-in', protect, async (req, res) => {
       signInTime: { $gte: today }
     });
 
+    const siteId = req.body.siteId || (req.user.site?._id || req.user.site);
+    let locationVerified = true;
+
+    if (siteId && req.body.gpsLocation?.lat) {
+      const site = await Site.findById(siteId);
+      if (site && site.location?.lat) {
+        const dist = getDistance(
+          req.body.gpsLocation.lat, 
+          req.body.gpsLocation.lng, 
+          site.location.lat, 
+          site.location.lng
+        );
+        // Allowance of 200 meters (radius)
+        if (dist > 200) {
+           locationVerified = false;
+        }
+      }
+    }
+
     const att = await Attendance.create({
       userId: req.user._id,
       company: req.user.company,
       shiftId: req.body.shiftId,
-      site: req.body.siteId || (req.user.site?._id || req.user.site),
+      site: siteId,
       signInTime: new Date(),
       gpsLocation: { signIn: req.body.gpsLocation },
-      status: dailyCount >= 3 ? 'pending' : (req.body.status || 'present')
+      status: !locationVerified ? 'pending' : (dailyCount >= 3 ? 'pending' : (req.body.status || 'present')),
+      notes: !locationVerified ? 'Clocked in outside geofence.' : req.body.notes
     });
 
     req.app.get('io').to(`company:${req.user.company}`).emit('attendance:update', { type: 'clock-in', userId: req.user._id, attendance: att });

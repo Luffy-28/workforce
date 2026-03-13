@@ -37,8 +37,15 @@ router.get('/:id', protect, requireManager, async (req, res) => {
 });
 
 // POST /api/users
-router.post('/', protect, requireAdmin, async (req, res) => {
+router.post('/', protect, requireManager, async (req, res) => {
   try {
+    const { role } = req.body;
+    
+    // Restriction: Managers can only create employees and supervisors
+    if (req.user.role === 'manager' && !['employee', 'supervisor'].includes(role)) {
+      return res.status(403).json({ message: 'Managers can only create employees and supervisors' });
+    }
+
     const userData = { ...req.body, company: req.user.company };
     const user = await User.create(userData);
     res.status(201).json(user);
@@ -46,24 +53,44 @@ router.post('/', protect, requireAdmin, async (req, res) => {
 });
 
 // PUT /api/users/:id
-router.put('/:id', protect, requireAdmin, async (req, res) => {
+router.put('/:id', protect, requireManager, async (req, res) => {
   try {
-    const user = await User.findOneAndUpdate(
-      { _id: req.params.id, company: req.user.company },
+    const targetUser = await User.findOne({ _id: req.params.id, company: req.user.company });
+    if (!targetUser) return res.status(404).json({ message: 'User not found' });
+
+    // Restriction: Managers cannot manage other managers or admins
+    if (req.user.role === 'manager') {
+      if (['manager', 'admin'].includes(targetUser.role)) {
+        return res.status(403).json({ message: 'Managers cannot modify other managers or admins' });
+      }
+      // Restriction: Managers cannot promote someone to manager or admin
+      if (req.body.role && !['employee', 'supervisor'].includes(req.body.role)) {
+        return res.status(403).json({ message: 'Managers can only assign employee or supervisor roles' });
+      }
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.params.id,
       req.body,
       { new: true, runValidators: true }
     ).select('-password');
 
-    if (!user) return res.status(404).json({ message: 'User not found' });
-    res.json(user);
+    res.json(updatedUser);
   } catch (err) { res.status(400).json({ message: err.message }); }
 });
 
 // DELETE /api/users/:id
-router.delete('/:id', protect, requireAdmin, async (req, res) => {
+router.delete('/:id', protect, requireManager, async (req, res) => {
   try {
-    const result = await User.findOneAndDelete({ _id: req.params.id, company: req.user.company });
-    if (!result) return res.status(404).json({ message: 'User not found' });
+    const targetUser = await User.findOne({ _id: req.params.id, company: req.user.company });
+    if (!targetUser) return res.status(404).json({ message: 'User not found' });
+
+    // Restriction: Managers cannot delete other managers or admins
+    if (req.user.role === 'manager' && ['manager', 'admin'].includes(targetUser.role)) {
+      return res.status(403).json({ message: 'Managers cannot delete other managers or admins' });
+    }
+
+    await User.findByIdAndDelete(req.params.id);
     res.json({ message: 'User deleted' });
   } catch (err) { res.status(500).json({ message: err.message }); }
 });

@@ -4,12 +4,22 @@ import { useNavigate } from 'react-router-dom';
 import { fetchAttendance } from '../store/slices/attendanceSlice';
 import { fetchInventory, fetchRequests } from '../store/slices/inventorySlice';
 import { fetchUsers } from '../store/slices/usersSlice';
+import { fetchAnnouncements, createAnnouncement } from '../store/slices/announcementsSlice';
 import StatCard from '../components/common/StatCard';
 import Badge from '../components/common/Badge';
 import Spinner from '../components/common/Spinner';
+import AnnouncementList from '../components/announcements/AnnouncementList';
+import Modal from '../components/common/Modal';
 import { fmtTime, fmtDate, statusBadgeClass } from '../utils/helpers';
 
 const DashboardPage = () => {
+  const [showAnnouncementModal, setShowAnnouncementModal] = React.useState(false);
+  const [announcementForm, setAnnouncementForm] = React.useState({
+    title: '',
+    message: '',
+    priority: 'normal'
+  });
+
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { user } = useSelector(s => s.auth);
@@ -26,7 +36,17 @@ const DashboardPage = () => {
     }
     dispatch(fetchInventory());
     dispatch(fetchRequests('?status=pending'));
+    dispatch(fetchAnnouncements());
   }, [dispatch, isManager]);
+
+  const handlePostAnnouncement = async (e) => {
+    e.preventDefault();
+    const result = await dispatch(createAnnouncement(announcementForm));
+    if (!result.error) {
+      setShowAnnouncementModal(false);
+      setAnnouncementForm({ title: '', message: '', priority: 'normal' });
+    }
+  };
 
   const lowStock = inventory.filter(i => i.isLowStock);
   const pendingRequests = requests.filter(r => r.status === 'pending');
@@ -144,29 +164,47 @@ const DashboardPage = () => {
           </div>
         )}
 
-        {/* Pending Requests */}
-        <div className={isManager ? 'col-lg-5' : 'col-lg-6'}>
-          <div className="wf-card h-100">
-            <div className="wf-card-header">
-              <h6 className="wf-card-title">Pending Requests</h6>
-              <button className="wf-btn wf-btn-outline wf-btn-sm" onClick={() => navigate('/requests')}>
-                View All <i className="bi bi-arrow-right" />
-              </button>
-            </div>
-            <div>
-              {pendingRequests.length === 0 ? (
-                <div className="py-4 text-center text-muted small">No pending requests</div>
-              ) : pendingRequests.slice(0, 5).map(r => (
-                <div key={r._id} className="d-flex align-items-center justify-content-between px-4 py-3 border-bottom">
-                  <div>
-                    <div className="fw-medium small">{r.employeeId?.name}</div>
-                    <div className="text-muted-sm">{r.itemId?.itemName} × {r.quantityRequested} {r.itemId?.unitType}</div>
+        {/* Announcements */}
+        <div className="col-lg-12">
+           <div className="row g-4">
+             <div className="col-lg-8">
+                {/* Existing content shifted here or similar */}
+                <div className="wf-card h-100">
+                  <div className="wf-card-header">
+                    <h6 className="wf-card-title">Pending Requests</h6>
+                    <button className="wf-btn wf-btn-outline wf-btn-sm" onClick={() => navigate('/requests')}>
+                      View All <i className="bi bi-arrow-right" />
+                    </button>
                   </div>
-                  <Badge status="pending">pending</Badge>
+                  <div>
+                    {pendingRequests.length === 0 ? (
+                      <div className="py-4 text-center text-muted small">No pending requests</div>
+                    ) : pendingRequests.slice(0, 5).map(r => (
+                      <div key={r._id} className="d-flex align-items-center justify-content-between px-4 py-3 border-bottom">
+                        <div>
+                          <div className="fw-medium small">{r.employeeId?.name}</div>
+                          <div className="text-muted-sm">{r.itemId?.itemName} × {r.quantityRequested} {r.itemId?.unitType}</div>
+                        </div>
+                        <Badge status="pending">pending</Badge>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
-            </div>
-          </div>
+             </div>
+             <div className="col-lg-4">
+                <div className="wf-card h-100 p-4">
+                   <AnnouncementList />
+                   {isManager && (
+                     <button 
+                       className="wf-btn wf-btn-primary w-100 mt-3"
+                       onClick={() => setShowAnnouncementModal(true)}
+                     >
+                       <i className="bi bi-plus-lg me-1"></i> Post Announcement
+                     </button>
+                   )}
+                </div>
+             </div>
+           </div>
         </div>
 
         {/* Inventory Overview */}
@@ -203,6 +241,51 @@ const DashboardPage = () => {
           </div>
         </div>
       </div>
+      <Modal 
+        open={showAnnouncementModal} 
+        onClose={() => setShowAnnouncementModal(false)}
+        title="Post New Announcement"
+      >
+        <form onSubmit={handlePostAnnouncement}>
+          <div className="mb-3">
+            <label className="form-label small fw-bold text-muted">Title</label>
+            <input 
+              type="text" 
+              className="wf-input" 
+              required 
+              value={announcementForm.title}
+              onChange={e => setAnnouncementForm({...announcementForm, title: e.target.value})}
+              placeholder="e.g. Holiday Schedule"
+            />
+          </div>
+          <div className="mb-3">
+            <label className="form-label small fw-bold text-muted">Message</label>
+            <textarea 
+              className="wf-input" 
+              rows="4" 
+              required 
+              value={announcementForm.message}
+              onChange={e => setAnnouncementForm({...announcementForm, message: e.target.value})}
+              placeholder="Write your announcement details here..."
+            />
+          </div>
+          <div className="mb-3">
+            <label className="form-label small fw-bold text-muted">Priority</label>
+            <select 
+              className="wf-input"
+              value={announcementForm.priority}
+              onChange={e => setAnnouncementForm({...announcementForm, priority: e.target.value})}
+            >
+              <option value="normal">Normal</option>
+              <option value="high">High (Urgent)</option>
+            </select>
+          </div>
+          <div className="d-flex gap-2 mt-4">
+            <button type="button" className="wf-btn wf-btn-outline w-100" onClick={() => setShowAnnouncementModal(false)}>Cancel</button>
+            <button type="submit" className="wf-btn wf-btn-primary w-100">Broadcast</button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };

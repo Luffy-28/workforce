@@ -17,6 +17,7 @@ import ReportsPage from './pages/ReportsPage';
 import SitesPage from './pages/SitesPage';
 import CompanyRegisterPage from './pages/CompanyRegisterPage';
 import ProfilePage from './pages/ProfilePage';
+import LeavePage from './pages/LeavePage';
 
 
 // ─── Route Guards ─────────────────────────────
@@ -65,6 +66,7 @@ const App = () => {
           <Route path="requests" element={<RequestsPage />} />
           <Route path="shifts" element={<ShiftsPage />} />
           <Route path="tasks" element={<TasksPage />} />
+          <Route path="leaves" element={<LeavePage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="profile" element={<ProfilePage />} />
 
@@ -77,9 +79,9 @@ const App = () => {
             <RoleRoute roles={['admin', 'manager']}><SitesPage /></RoleRoute>
           } />
 
-          {/* Admin only */}
+          {/* Admin/Manager only */}
           <Route path="users" element={
-            <RoleRoute roles={['admin']}><UsersPage /></RoleRoute>
+            <RoleRoute roles={['admin', 'manager']}><UsersPage /></RoleRoute>
           } />
         </Route>
 

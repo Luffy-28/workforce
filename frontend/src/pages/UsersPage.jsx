@@ -139,10 +139,13 @@ const UsersPage = () => {
                     <td className="small text-muted">{fmtDate(u.createdAt)}</td>
                     <td>
                       <div className="d-flex gap-2">
-                        <button className="wf-btn wf-btn-outline wf-btn-sm" onClick={() => openEdit(u)}>
-                          <i className="bi bi-pencil" />Edit
-                        </button>
-                        {u._id !== currentUser?._id && (
+                        {/* Managers can only edit employees and supervisors. Admins can edit anyone. */}
+                        {(currentUser.role === 'admin' || (currentUser.role === 'manager' && ['employee', 'supervisor'].includes(u.role))) && (
+                          <button className="wf-btn wf-btn-outline wf-btn-sm" onClick={() => openEdit(u)}>
+                            <i className="bi bi-pencil" />Edit
+                          </button>
+                        )}
+                        {u._id !== currentUser?._id && (currentUser.role === 'admin' || (currentUser.role === 'manager' && ['employee', 'supervisor'].includes(u.role))) && (
                           <button className="wf-btn wf-btn-sm" style={{ background: '#fef2f2', color: '#ef4444', border: '1px solid #fee2e2' }}
                             onClick={() => {
                               Alert.alert('Delete User', 'Are you sure you want to delete this user? This action cannot be undone.', [
@@ -190,8 +193,8 @@ const UsersPage = () => {
                 <select className="wf-select" value={form.role} onChange={e => setForm(p => ({ ...p, role: e.target.value }))}>
                   <option value="employee">Employee</option>
                   <option value="supervisor">Supervisor</option>
-                  <option value="manager">Manager</option>
-                  <option value="admin">Admin</option>
+                  {currentUser.role === 'admin' && <option value="manager">Manager</option>}
+                  {currentUser.role === 'admin' && <option value="admin">Admin</option>}
                 </select>
               </div>
             </div>
